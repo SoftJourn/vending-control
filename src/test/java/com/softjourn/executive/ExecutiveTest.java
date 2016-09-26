@@ -11,9 +11,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @RunWith(MockitoJUnitRunner.class)
 public class ExecutiveTest {
@@ -48,7 +46,7 @@ public class ExecutiveTest {
 
     @Test
     public void statusFreeVend() throws Exception {
-        when(inputStream.read()).thenReturn(0b00000001);
+        when(inputStream.read()).thenReturn(0b10000000);
 
         assertEquals(Status.FREEVEND, executive.status(machine));
         verify(outputStream, times(1)).write(0b00110001);
@@ -56,7 +54,7 @@ public class ExecutiveTest {
 
     @Test
     public void statusFreeVendAuditData() throws Exception {
-        when(inputStream.read()).thenReturn(0b01100001);
+        when(inputStream.read()).thenReturn(0b10000101);
 
         assertEquals(Status.FREEVEND, executive.status(machine));
         verify(outputStream, times(1)).write(0b00110001);
@@ -64,14 +62,14 @@ public class ExecutiveTest {
 
     @Test
     public void statusInhibited() throws Exception {
-        when(inputStream.read()).thenReturn(0b00000010);
+        when(inputStream.read()).thenReturn(0b01000000);
         assertEquals(Status.INHIBITED, executive.status(machine));
         verify(outputStream, times(1)).write(0b00110001);
     }
 
     @Test
     public void statusInhibitedFreeVend() throws Exception {
-        when(inputStream.read()).thenReturn(0b00000011);
+        when(inputStream.read()).thenReturn(0b11000000);
         assertEquals(Status.INHIBITED, executive.status(machine));
         verify(outputStream, times(1)).write(0b00110001);
     }
@@ -91,17 +89,31 @@ public class ExecutiveTest {
     }
 
     @Test
+    public void successfulVending() throws Exception {
+        when(inputStream.read()).thenReturn(0b00000000);
+        executive.vend(machine);
+        verify(outputStream, times(1)).write(0b00110011);
+    }
+
+    @Test(expected = VendingProcessingException.class)
+    public void unsuccessfulVending() throws Exception {
+        when(inputStream.read()).thenReturn(0b10000000);
+        executive.vend(machine);
+        verify(outputStream, times(1)).write(0b00110011);
+    }
+
+    @Test
     public void cleanAuditTest() throws Exception {
-        assertEquals(0b00000001, Executive.cleanAuditData(0b01000001));
-        assertEquals(0b00000001, Executive.cleanAuditData(0b11000001));
-        assertEquals(0b00000001, Executive.cleanAuditData(0b01010001));
-        assertEquals(0b00000001, Executive.cleanAuditData(0b00000001));
-        assertEquals(0b00000001, Executive.cleanAuditData(0b11110001));
-        assertEquals(0b00000011, Executive.cleanAuditData(0b00000011));
-        assertEquals(0b00000011, Executive.cleanAuditData(0b01000011));
-        assertEquals(0b00000011, Executive.cleanAuditData(0b11000011));
-        assertEquals(0b00000011, Executive.cleanAuditData(0b11100011));
-        assertEquals(0b00000011, Executive.cleanAuditData(0b11110011));
+        assertEquals(0b10000000, Executive.cleanAuditData(0b10000000));
+        assertEquals(0b10000000, Executive.cleanAuditData(0b10000001));
+        assertEquals(0b10000000, Executive.cleanAuditData(0b10000011));
+        assertEquals(0b10000000, Executive.cleanAuditData(0b10000111));
+        assertEquals(0b10000000, Executive.cleanAuditData(0b10001111));
+        assertEquals(0b11000000, Executive.cleanAuditData(0b11000000));
+        assertEquals(0b11000000, Executive.cleanAuditData(0b11000001));
+        assertEquals(0b11000000, Executive.cleanAuditData(0b11000011));
+        assertEquals(0b11000000, Executive.cleanAuditData(0b11000111));
+        assertEquals(0b11000000, Executive.cleanAuditData(0b11001111));
 
     }
 
