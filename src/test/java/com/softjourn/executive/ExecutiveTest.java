@@ -55,6 +55,14 @@ public class ExecutiveTest {
     }
 
     @Test
+    public void statusFreeVendAuditData() throws Exception {
+        when(inputStream.read()).thenReturn(0b01100001);
+
+        assertEquals(Status.FREEVEND, executive.status(machine));
+        verify(outputStream, times(1)).write(0b00110001);
+    }
+
+    @Test
     public void statusInhibited() throws Exception {
         when(inputStream.read()).thenReturn(0b00000010);
         assertEquals(Status.INHIBITED, executive.status(machine));
@@ -68,4 +76,18 @@ public class ExecutiveTest {
         verify(outputStream, times(1)).write(0b00110001);
     }
 
+    @Test
+    public void cleanAuditTest() throws Exception {
+        assertEquals(0b00000001, Executive.cleanAuditData(0b01000001));
+        assertEquals(0b00000001, Executive.cleanAuditData(0b11000001));
+        assertEquals(0b00000001, Executive.cleanAuditData(0b01010001));
+        assertEquals(0b00000001, Executive.cleanAuditData(0b00000001));
+        assertEquals(0b00000001, Executive.cleanAuditData(0b11110001));
+        assertEquals(0b00000011, Executive.cleanAuditData(0b00000011));
+        assertEquals(0b00000011, Executive.cleanAuditData(0b01000011));
+        assertEquals(0b00000011, Executive.cleanAuditData(0b11000011));
+        assertEquals(0b00000011, Executive.cleanAuditData(0b11100011));
+        assertEquals(0b00000011, Executive.cleanAuditData(0b11110011));
+
+    }
 }
