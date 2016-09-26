@@ -9,6 +9,7 @@ import org.mockito.runners.MockitoJUnitRunner;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
@@ -29,7 +30,7 @@ public class ExecutiveTest {
 
     @Before
     public void setUp() throws Exception {
-        executive = new Executive(2);
+        executive = new Executive(2, 5);
 
         when(machine.getInputStream()).thenReturn(inputStream);
         when(machine.getOutputStream()).thenReturn(outputStream);
@@ -47,6 +48,36 @@ public class ExecutiveTest {
     @Test
     public void statusFreeVend() throws Exception {
         when(inputStream.read()).thenReturn(0b10000000);
+
+        assertEquals(Status.FREEVEND, executive.status(machine));
+        verify(outputStream, times(1)).write(0b00110001);
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void statusDataTransmissionErrorOccurredStatusRequest() throws Exception {
+        int initSeconds = (int) (System.currentTimeMillis()/1000) + 20; //Return PNAK for next 20 seconds
+        when(inputStream.read()).then(i -> {
+            int curSeconds = (int) (System.currentTimeMillis() / 1000);
+            if (curSeconds < initSeconds) {
+                return 255;
+            }
+            return 0b10000000;
+        });
+
+        assertEquals(Status.FREEVEND, executive.status(machine));
+        verify(outputStream, times(1)).write(0b00110001);
+    }
+
+    @Test
+    public void statusDataTransmissionErrorOccurredStatusRequestOneError() throws Exception {
+        int times =  1; //Return PNAK for next 1 times
+        AtomicInteger count = new AtomicInteger(0);
+        when(inputStream.read()).then(i -> {
+            if (times < count.getAndAdd(1)) {
+                return 255;
+            }
+            return 0b10000000;
+        });
 
         assertEquals(Status.FREEVEND, executive.status(machine));
         verify(outputStream, times(1)).write(0b00110001);
