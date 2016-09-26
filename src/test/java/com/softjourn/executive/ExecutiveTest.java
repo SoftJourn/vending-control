@@ -29,7 +29,7 @@ public class ExecutiveTest {
 
     @Before
     public void setUp() throws Exception {
-        executive = new Executive();
+        executive = new Executive(2);
 
         when(machine.getInputStream()).thenReturn(inputStream);
         when(machine.getOutputStream()).thenReturn(outputStream);
@@ -91,14 +91,26 @@ public class ExecutiveTest {
     @Test
     public void successfulVending() throws Exception {
         when(inputStream.read()).thenReturn(0b00000000);
-        executive.vend(machine);
+        assertEquals(Vend.SUCCESS, executive.vend(machine));
         verify(outputStream, times(1)).write(0b00110011);
     }
 
-    @Test(expected = VendingProcessingException.class)
+    @Test
     public void unsuccessfulVending() throws Exception {
         when(inputStream.read()).thenReturn(0b10000000);
-        executive.vend(machine);
+        assertEquals(Vend.ERROR, executive.vend(machine));
+        verify(outputStream, times(1)).write(0b00110011);
+    }
+
+    @Test
+    public void vendingTimeout() throws Exception {
+        int initSeconds = (int) (System.currentTimeMillis()/1000) + 3;
+        when(inputStream.read()).then(i -> {
+            int curSeconds = (int) (System.currentTimeMillis()/1000);
+            if (curSeconds < initSeconds) return -1;
+            return 0;
+        });
+        assertEquals(Vend.TIMEOUT, executive.vend(machine));
         verify(outputStream, times(1)).write(0b00110011);
     }
 

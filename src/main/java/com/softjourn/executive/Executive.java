@@ -14,6 +14,17 @@ public class Executive {
 
     public static final int VEND_REQUEST = 0b00110011;
 
+    public static final int DEFAULT_VEND_TIMEOUT_SECONDS = 20;
+
+    private int timeoutSeconds;
+
+    public Executive() {
+        this(DEFAULT_VEND_TIMEOUT_SECONDS);
+    }
+
+    public Executive(int timeoutSeconds) {
+        this.timeoutSeconds = timeoutSeconds;
+    }
 
     public synchronized Status status(Machine machine) throws IOException {
         writeRequest(machine, STATUS_REQUEST);
@@ -38,10 +49,20 @@ public class Executive {
         else return Credit.VEND_REQUESTED;
     }
 
-    public synchronized void vend(Machine machine) throws IOException, VendingProcessingException {
+    public synchronized Vend vend(Machine machine) throws IOException, InterruptedException {
         writeRequest(machine, VEND_REQUEST);
-        int resp = readResponse(machine);
-        if (resp != 0) throw new VendingProcessingException();
+
+        int currentTime = (int) (System.currentTimeMillis()/1000);
+        int endTime = currentTime + timeoutSeconds;
+
+        int resp = -1;
+        while (currentTime < endTime) {
+            resp = readResponse(machine);
+            if (resp != -1) break;
+            Thread.sleep(500);
+            currentTime = (int) (System.currentTimeMillis()/1000);
+        }
+        return  resp == 0 ? Vend.SUCCESS : resp == -1 ? Vend.TIMEOUT : Vend.ERROR;
     }
 
     private void writeRequest(Machine machine, int request) throws IOException {
