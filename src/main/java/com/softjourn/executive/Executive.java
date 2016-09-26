@@ -14,7 +14,7 @@ public class Executive {
 
     public static final int VEND_REQUEST = 0b00110011;
 
-    public static final int DEFAULT_VEND_TIMEOUT_SECONDS = 20;
+    public static final int DEFAULT_VEND_TIMEOUT_SECONDS = 60;
 
     private int timeoutSeconds;
 
@@ -22,6 +22,12 @@ public class Executive {
         this(DEFAULT_VEND_TIMEOUT_SECONDS);
     }
 
+    /**
+     * Timeout to vait for vend command response
+     * Default is 60 seconds. It's recomended in Executive protocol documentation
+     * to use at least 60 seconds.
+     * @param timeoutSeconds timeout to wait for response.
+     */
     public Executive(int timeoutSeconds) {
         this.timeoutSeconds = timeoutSeconds;
     }
