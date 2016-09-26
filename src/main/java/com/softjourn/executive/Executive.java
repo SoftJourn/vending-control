@@ -1,6 +1,10 @@
 package com.softjourn.executive;
 
+import com.softjourn.machine.Machine;
+
 public class Executive {
 
-    private javax.smartcardio.Card
+    public synchronized Status status(Machine machine) {
+        return Status.ACK;
+    }
 }
