@@ -77,6 +77,20 @@ public class ExecutiveTest {
     }
 
     @Test
+    public void creditNoVendRequest() throws Exception {
+        when(inputStream.read()).thenReturn(0b11111110);
+        assertEquals(Credit.NO_VEND_REQUEST, executive.credit(machine));
+        verify(outputStream, times(1)).write(0b00110010);
+    }
+
+    @Test
+    public void credit5CreditRequest() throws Exception {
+        when(inputStream.read()).thenReturn(0b00000101);
+        assertEquals(Credit.VEND_REQUESTED, executive.credit(machine));
+        verify(outputStream, times(1)).write(0b00110010);
+    }
+
+    @Test
     public void cleanAuditTest() throws Exception {
         assertEquals(0b00000001, Executive.cleanAuditData(0b01000001));
         assertEquals(0b00000001, Executive.cleanAuditData(0b11000001));
@@ -90,4 +104,5 @@ public class ExecutiveTest {
         assertEquals(0b00000011, Executive.cleanAuditData(0b11110011));
 
     }
+
 }

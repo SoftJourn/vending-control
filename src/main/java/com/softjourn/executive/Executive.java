@@ -10,12 +10,12 @@ public class Executive {
 
     public static final int STATUS_REQUEST = 0b00110001;
 
-    public synchronized Status status(Machine machine) throws IOException {
-        InputStream inputStream = machine.getInputStream();
-        OutputStream outputStream = machine.getOutputStream();
+    public static final int CREDIT_REQUEST = 0b00110010;
 
-        outputStream.write(STATUS_REQUEST);
-        int resp = inputStream.read();
+
+    public synchronized Status status(Machine machine) throws IOException {
+        writeRequest(machine, STATUS_REQUEST);
+        int resp = readResponce(machine);
 
         int clear = cleanAuditData(resp);
 
@@ -28,7 +28,25 @@ public class Executive {
         }
     }
 
-    public static int cleanAuditData(int val) {
+    public synchronized Credit credit(Machine machine) throws IOException {
+        writeRequest(machine, CREDIT_REQUEST);
+        int resp = readResponce(machine);
+
+        if (resp == 254) return Credit.NO_VEND_REQUEST;
+        else return Credit.VEND_REQUESTED;
+    }
+
+    private void writeRequest(Machine machine, int request) throws IOException {
+        OutputStream outputStream = machine.getOutputStream();
+        outputStream.write(request);
+    }
+
+    private int readResponce(Machine machine) throws IOException {
+        InputStream inputStream = machine.getInputStream();
+        return inputStream.read();
+    }
+
+    static int cleanAuditData(int val) {
         return (val << 28) >>> 28;
     }
 }
