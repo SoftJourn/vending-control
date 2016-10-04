@@ -32,11 +32,11 @@ public class Executive {
      * i.e. when data was corrupted in transfer layer and parity bit doesn't match.
      * Default try count is set to 5
      *
-     * @param timeoutSeconds timeout to wait for response.
+     * @param vendingTimeoutSeconds timeout to wait for response.
      * @param tryCount count to try send data on PNAK response
      */
-    public Executive(int timeoutSeconds, int tryCount) {
-        this.timeoutSeconds = timeoutSeconds;
+    public Executive(int vendingTimeoutSeconds, int tryCount) {
+        this.timeoutSeconds = vendingTimeoutSeconds;
         this.tryCount = tryCount;
     }
 
