@@ -38,10 +38,10 @@ public class RaspberryKeyboardEmulator implements KeyboardEmulator, AutoCloseabl
             GpioPinDigitalOutput rowNumberPin = pins.get(Integer.parseInt(key.substring(0, 1)));
             GpioPinDigitalOutput columnNumberPin = pins.get(Integer.parseInt(key.substring(1)));
 
-            rowNumberPin.pulse(200, true);
-            Thread.sleep(500);
-            columnNumberPin.pulse(200);
-            Thread.sleep(5000);
+            rowNumberPin.pulse(70, true);
+            Thread.sleep(100);
+            columnNumberPin.pulse(70);
+            Thread.sleep(9000);
             log.info("Successful vending.");
         } else {
             log.warn("Wrong key \"" + key + "\".");
