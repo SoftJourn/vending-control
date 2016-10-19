@@ -2,6 +2,7 @@ package com.softjourn;
 
 import com.softjourn.executive.Executive;
 import com.softjourn.keyboard.KeyboardEmulator;
+import com.softjourn.keyboard.RaspberryKeyboardEmulator;
 import com.softjourn.machine.Machine;
 import com.sun.net.httpserver.HttpServer;
 import gnu.io.NoSuchPortException;
@@ -10,18 +11,13 @@ import lombok.Builder;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.util.Properties;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 @Builder
 public class Server implements AutoCloseable {
@@ -65,37 +61,16 @@ public class Server implements AutoCloseable {
     }
 
     public static void main(String[] args) throws NoSuchPortException, PortInUseException, IOException {
+
+        Properties properties = new Properties();
+        InputStream propertiesStream = Server.class.getClassLoader().getResourceAsStream("application.properties");
+        if (propertiesStream == null) throw new IllegalStateException("Can't find application.properties file");
+        properties.load(propertiesStream);
+
         HttpVendRequestHandler requestHandler = new HttpVendRequestHandler();
 
-        KeyboardEmulator keyboardEmulator = mock(KeyboardEmulator.class);
-        InputStream inputStream = mock(InputStream.class);
-        OutputStream outputStream = mock(OutputStream.class);
-        AtomicInteger lastRequest = new AtomicInteger();
-        AtomicInteger vendRequestCounter = new AtomicInteger(0);
-        doAnswer(i -> vendRequestCounter.incrementAndGet())
-                .when(keyboardEmulator)
-                .sendKey(anyString());
-        doAnswer(i -> {
-            Integer val = (Integer) i.getArguments()[0];
-            lastRequest.set(val);
-            return null;
-        }).when(outputStream).write(anyInt());
-
-        when(inputStream.read()).thenAnswer(i -> {
-            int lr = lastRequest.get();
-            switch (lr) {
-                case Executive.CREDIT_REQUEST : return vendRequestCounter.get() > 0 ? 0 : 254;
-                case Executive.STATUS_REQUEST: return vendRequestCounter.get() > 0 ? 128 : 0;
-                case Executive.VEND_REQUEST: {
-                    Thread.sleep(5000);
-                    return vendRequestCounter.getAndDecrement() > 0 ? 0 : 128;
-                }
-                default: return null;
-            }
-        });
+        KeyboardEmulator keyboardEmulator = new RaspberryKeyboardEmulator();
         Machine machine = mock(Machine.class);
-        when(machine.getInputStream()).thenReturn(inputStream);
-        when(machine.getOutputStream()).thenReturn(outputStream);
         //Machine machine = new Machine("/dev/ttyS0");
 
         Executive executive = new Executive();

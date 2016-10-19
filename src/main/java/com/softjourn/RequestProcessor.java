@@ -47,13 +47,12 @@ public class RequestProcessor implements Runnable {
                 log.info("Request for \"" + cell + "\" cell received.");
                 log.debug("Sending selected cell to keyboard emulator.");
                 keyboardEmulator.sendKey(cell);
-                Status result = sell(KEYBOARD_WAITING_TIMEOUT_SECONDS);
-                log.info("Vending result - " + result);
-                holder.putResult(exchange, result);
+
+                holder.putResult(exchange, Status.SUCCESS);
                 exchange.notify();
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException | InterruptedException e) {
+            log.error("Exception during processing request. " + e.getMessage(), e);
         }
     }
 
