@@ -7,6 +7,11 @@ import java.io.IOException;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
+import java.time.Instant;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Optional.ofNullable;
 
@@ -15,6 +20,10 @@ public class SignSecurityFilter extends Filter {
     private static final String AUTH_HEADER_NAME = "Authorization";
 
     private Signature signature;
+
+    private AtomicInteger counter = new AtomicInteger(0);
+
+    private Set<Instant> used = new HashSet<>();
 
     public SignSecurityFilter(byte[] publicKeyData) {
         try {
@@ -29,6 +38,15 @@ public class SignSecurityFilter extends Filter {
         } catch (InvalidKeyException e) {
             throw new RuntimeException("Wrong key specified!");
         }
+    }
+
+    public SignSecurityFilter(Signature signature) {
+        this.signature = signature;
+    }
+
+    public SignSecurityFilter(Set<Instant> used, Signature signature) {
+        this.used = used;
+        this.signature = signature;
     }
 
     @Override
@@ -47,16 +65,44 @@ public class SignSecurityFilter extends Filter {
 
         String data = getData(authHeader);
         String signed = getSigned(authHeader);
-        verify(data, signed);
+        verifySignature(data, signed);
 
     }
 
-    void verify(String data, String signed) {
+    void verifySignature(String data, String signed) {
         try {
             signature.update(data.getBytes());
             if (! signature.verify(signed.getBytes())) throw new AccessControlException("Error checking authorization.");
         } catch (SignatureException e) {
             throw new AccessControlException("Error checking authorization.");
+        }
+    }
+
+    boolean verifyTime(String data) {
+        try {
+            Long timestamp = Long.parseLong(data);
+            Instant time = Instant.ofEpochMilli(timestamp);
+            Instant now = Instant.now();
+            if (time.isAfter(now) || time.isBefore(now.minusSeconds(10)) || used.contains(time)) {
+                throw new AccessControlException("Error checking authorization.");
+            }
+            used.add(time);
+            cleanUsed();
+            return true;
+        } catch (NumberFormatException e) {
+            throw new AccessControlException("Wrong auth header provided");
+        }
+    }
+
+    private void cleanUsed() {
+        if (counter.incrementAndGet() > 10) {
+            Iterator<Instant> usedIterator = used.iterator();
+            while (usedIterator.hasNext()) {
+                Instant time = usedIterator.next();
+                if (time.isBefore(Instant.now().minusSeconds(10))) {
+                    usedIterator.remove();
+                }
+            }
         }
     }
 
