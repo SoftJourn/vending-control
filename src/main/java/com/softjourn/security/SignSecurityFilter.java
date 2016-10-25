@@ -4,6 +4,7 @@ import com.sun.net.httpserver.Filter;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
@@ -28,11 +29,11 @@ public class SignSecurityFilter extends Filter {
     public SignSecurityFilter(byte[] publicKeyData) {
         try {
             X509EncodedKeySpec pubKeySpec = new X509EncodedKeySpec(publicKeyData);
-            KeyFactory keyFactory = KeyFactory.getInstance("RSA", "BC");
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             PublicKey pubKey = keyFactory.generatePublic(pubKeySpec);
-            signature = Signature.getInstance("SHA1withRSA", "BC");
+            signature = Signature.getInstance("SHA256withRSA");
             signature.initVerify(pubKey);
-        } catch (NoSuchAlgorithmException | NoSuchProviderException | InvalidKeySpecException e) {
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             //should never happen
             throw new RuntimeException(e);
         } catch (InvalidKeyException e) {
@@ -51,13 +52,17 @@ public class SignSecurityFilter extends Filter {
 
     @Override
     public void doFilter(HttpExchange httpExchange, Chain chain) throws IOException {
-        String authHeader = ofNullable(httpExchange.getRequestHeaders())
-                .map(h -> h.get(AUTH_HEADER_NAME))
-                .map(h -> h.get(0))
-                .orElseThrow(() -> new AccessControlException("Auth header not provided."));
+        try {
+            processAuth(httpExchange);
+            chain.doFilter(httpExchange);
+        } catch (AccessControlException e) {
+            httpExchange.sendResponseHeaders(401, 0);
+            httpExchange.getResponseBody().write(e.getMessage().getBytes());
+            httpExchange.close();
+        }
     }
 
-    void processAuth(HttpExchange httpExchange) {
+    private void processAuth(HttpExchange httpExchange) {
         String authHeader = ofNullable(httpExchange.getRequestHeaders())
                 .flatMap(h -> ofNullable(h.get(AUTH_HEADER_NAME)))
                 .flatMap(h -> ofNullable(h.get(0)))
@@ -66,13 +71,15 @@ public class SignSecurityFilter extends Filter {
         String data = getData(authHeader);
         String signed = getSigned(authHeader);
         verifySignature(data, signed);
-
+        verifyTime(data);
     }
 
-    void verifySignature(String data, String signed) {
+    private void verifySignature(String data, String signed) {
         try {
             signature.update(data.getBytes());
-            if (! signature.verify(signed.getBytes())) throw new AccessControlException("Error checking authorization.");
+            if (! signature.verify(new BigInteger(signed, 16).toByteArray())) {
+                throw new AccessControlException("Error checking authorization.");
+            }
         } catch (SignatureException e) {
             throw new AccessControlException("Error checking authorization.");
         }

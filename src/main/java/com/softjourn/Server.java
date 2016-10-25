@@ -2,16 +2,22 @@ package com.softjourn;
 
 import com.softjourn.executive.Executive;
 import com.softjourn.keyboard.KeyboardEmulator;
-import com.softjourn.keyboard.RaspberryKeyboardEmulator;
 import com.softjourn.machine.Machine;
+import com.softjourn.security.SignSecurityFilter;
+import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpServer;
 import gnu.io.NoSuchPortException;
 import gnu.io.PortInUseException;
 import lombok.Builder;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.security.PublicKey;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -34,11 +40,14 @@ public class Server implements AutoCloseable {
 
     private ExecutorService requestProcessorExecutor;
 
+    private SignSecurityFilter securityFilter;
+
     public void start() throws IOException {
         if (server == null) {
             server = HttpServer.create(new InetSocketAddress(port), 0);
             server.setExecutor(executor);
-            server.createContext("/", requestHandler);
+            HttpContext context = server.createContext("/", requestHandler);
+            context.getFilters().add(securityFilter);
         }
         if (requestProcessor == null) {
             throw new IllegalStateException("RequestProcessor can't be null.");
@@ -60,7 +69,7 @@ public class Server implements AutoCloseable {
         private ExecutorService requestProcessorExecutor = Executors.newSingleThreadExecutor();
     }
 
-    public static void main(String[] args) throws NoSuchPortException, PortInUseException, IOException {
+    public static void main(String[] args) throws NoSuchPortException, PortInUseException, IOException, CertificateException {
 
         Properties properties = new Properties();
         InputStream propertiesStream = Server.class.getClassLoader().getResourceAsStream("application.properties");
@@ -69,9 +78,10 @@ public class Server implements AutoCloseable {
 
         HttpVendRequestHandler requestHandler = new HttpVendRequestHandler();
 
-        KeyboardEmulator keyboardEmulator = new RaspberryKeyboardEmulator();
+        SignSecurityFilter signSecurityFilter = new SignSecurityFilter(readPublicKey());
+
+        KeyboardEmulator keyboardEmulator = mock(KeyboardEmulator.class);
         Machine machine = mock(Machine.class);
-        //Machine machine = new Machine("/dev/ttyS0");
 
         Executive executive = new Executive();
         RequestProcessor requestProcessor = new RequestProcessor(requestHandler, machine, executive, keyboardEmulator);
@@ -80,7 +90,16 @@ public class Server implements AutoCloseable {
                 .port(7070)
                 .requestHandler(requestHandler)
                 .requestProcessor(requestProcessor)
+                .securityFilter(signSecurityFilter)
                 .build()
                 .start();
+    }
+
+    public static byte[] readPublicKey() throws FileNotFoundException, CertificateException {
+        InputStream fin = Server.class.getClassLoader().getResourceAsStream("security.cert");
+        CertificateFactory f = CertificateFactory.getInstance("X.509");
+        X509Certificate certificate = (X509Certificate)f.generateCertificate(fin);
+        PublicKey pk = certificate.getPublicKey();
+        return pk.getEncoded();
     }
 }
