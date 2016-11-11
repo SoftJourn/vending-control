@@ -2,6 +2,7 @@ package com.softjourn;
 
 import com.softjourn.executive.Executive;
 import com.softjourn.keyboard.KeyboardEmulator;
+import com.softjourn.keyboard.RaspberryKeyboardEmulator;
 import com.softjourn.machine.Machine;
 import com.softjourn.security.SignSecurityFilter;
 import com.sun.net.httpserver.HttpContext;
@@ -80,7 +81,7 @@ public class Server implements AutoCloseable {
 
         SignSecurityFilter signSecurityFilter = new SignSecurityFilter(readPublicKey());
 
-        KeyboardEmulator keyboardEmulator = mock(KeyboardEmulator.class);
+        KeyboardEmulator keyboardEmulator = new RaspberryKeyboardEmulator();
         Machine machine = mock(Machine.class);
 
         Executive executive = new Executive();

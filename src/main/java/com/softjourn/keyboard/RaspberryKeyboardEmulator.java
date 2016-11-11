@@ -18,8 +18,8 @@ public class RaspberryKeyboardEmulator implements KeyboardEmulator, AutoCloseabl
         gpio = GpioFactory.getInstance();
         pins = new HashMap<Integer, GpioPinDigitalOutput>(){{
             put(1, gpio.provisionDigitalOutputPin(RaspiPin.GPIO_01, "1", PinState.LOW));
-            put(2, gpio.provisionDigitalOutputPin(RaspiPin.GPIO_08, "2", PinState.LOW));
-            put(3, gpio.provisionDigitalOutputPin(RaspiPin.GPIO_09, "3", PinState.LOW));
+            put(2, gpio.provisionDigitalOutputPin(RaspiPin.GPIO_05, "2", PinState.LOW));
+            put(3, gpio.provisionDigitalOutputPin(RaspiPin.GPIO_04, "3", PinState.LOW));
             put(4, gpio.provisionDigitalOutputPin(RaspiPin.GPIO_03, "4", PinState.LOW));
             put(5, gpio.provisionDigitalOutputPin(RaspiPin.GPIO_00, "5", PinState.LOW));
             put(6, gpio.provisionDigitalOutputPin(RaspiPin.GPIO_02, "6", PinState.LOW));

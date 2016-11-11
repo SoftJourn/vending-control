@@ -2,6 +2,7 @@ package com.softjourn.security;
 
 import com.sun.net.httpserver.Filter;
 import com.sun.net.httpserver.HttpExchange;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -16,6 +17,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Optional.ofNullable;
 
+
+@Slf4j
 public class SignSecurityFilter extends Filter {
 
     private static final String AUTH_HEADER_NAME = "Authorization";
@@ -59,6 +62,7 @@ public class SignSecurityFilter extends Filter {
             httpExchange.sendResponseHeaders(401, 0);
             httpExchange.getResponseBody().write(e.getMessage().getBytes());
             httpExchange.close();
+            log.warn("Authorization failure for IP " + httpExchange.getRemoteAddress() + ". " + e.getMessage());
         }
     }
 
