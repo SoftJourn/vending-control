@@ -65,7 +65,7 @@ public class Server implements AutoCloseable {
 
     public static class ServerBuilder {
         private int port = 7070;
-        private HttpVendRequestHandler requestHandler = new HttpVendRequestHandler();
+        private HttpVendRequestHandler requestHandler = new HttpVendRequestHandler(1);
         private Executor executor = Executors.newCachedThreadPool();
         private ExecutorService requestProcessorExecutor = Executors.newSingleThreadExecutor();
     }
@@ -77,7 +77,7 @@ public class Server implements AutoCloseable {
         if (propertiesStream == null) throw new IllegalStateException("Can't find application.properties file");
         properties.load(propertiesStream);
 
-        HttpVendRequestHandler requestHandler = new HttpVendRequestHandler();
+        HttpVendRequestHandler requestHandler = new HttpVendRequestHandler(1);
 
         SignSecurityFilter signSecurityFilter = new SignSecurityFilter(readPublicKey());
 

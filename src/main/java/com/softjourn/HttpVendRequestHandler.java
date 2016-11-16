@@ -16,26 +16,33 @@ public class HttpVendRequestHandler implements HttpHandler, RequestsHolder {
 
     private ConcurrentHashMap<HttpExchange, RequestProcessor.Status> inProcess;
 
-    public HttpVendRequestHandler() {
+    private int queueSizeLimit;
+
+    public HttpVendRequestHandler(int queueSizeLimit) {
+        this.queueSizeLimit = queueSizeLimit;
         deque = new LinkedBlockingDeque<>();
         inProcess = new ConcurrentHashMap<>();
     }
 
     @Override
-    public void handle(HttpExchange httpExchange) throws IOException {
+    public synchronized void handle(HttpExchange httpExchange) throws IOException {
         synchronized (httpExchange) {
             log.info("Request received. IP " + httpExchange.getRemoteAddress());
-            deque.push(httpExchange);
-            try {
-                httpExchange.wait();
-                RequestProcessor.Status status = inProcess.get(httpExchange);
-                httpExchange.sendResponseHeaders(status.code(), 0);
+            if (deque.size() >= queueSizeLimit ) { // allow only on
+                httpExchange.sendResponseHeaders(509, 0);
                 httpExchange.close();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+            } else {
+                deque.push(httpExchange);
+                try {
+                    httpExchange.wait();
+                    RequestProcessor.Status status = inProcess.get(httpExchange);
+                    httpExchange.sendResponseHeaders(status.code(), 0);
+                    httpExchange.close();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
-
     }
 
     public HttpExchange next() {
