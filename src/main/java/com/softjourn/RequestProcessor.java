@@ -8,7 +8,6 @@ import com.softjourn.keyboard.KeyboardEmulator;
 import com.softjourn.machine.Machine;
 import com.sun.net.httpserver.HttpExchange;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
 
@@ -78,7 +77,7 @@ public class RequestProcessor implements Runnable {
     }
 
     private String getCell(HttpExchange exchange) throws IOException {
-        return IOUtils.toString(exchange.getRequestBody(), "utf8");
+        return (String) exchange.getAttribute("Cell");
     }
 
     public enum  Status {

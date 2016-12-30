@@ -3,6 +3,7 @@ package com.softjourn.security;
 import com.sun.net.httpserver.Filter;
 import com.sun.net.httpserver.HttpExchange;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -11,7 +12,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -76,12 +76,19 @@ public class SignSecurityFilter extends Filter {
         String signed = getSigned(authHeader);
         verifySignature(data, signed);
         verifyTime(data);
+        try {
+            String body = IOUtils.toString(httpExchange.getRequestBody(), "utf8");
+            verifyCell(data, body);
+            httpExchange.setAttribute("Cell", body);
+        } catch (IOException e) {
+            log.warn("Can't read request body", e);
+        }
     }
 
     private void verifySignature(String data, String signed) {
         try {
             signature.update(data.getBytes());
-            if (! signature.verify(new BigInteger(signed, 16).toByteArray())) {
+            if (!signature.verify(new BigInteger(signed, 16).toByteArray())) {
                 throw new AccessControlException("Error checking authorization.");
             }
         } catch (SignatureException e) {
@@ -91,7 +98,7 @@ public class SignSecurityFilter extends Filter {
 
     boolean verifyTime(String data) {
         try {
-            Long timestamp = Long.parseLong(data);
+            Long timestamp = Long.parseLong(data.substring(0, data.length() - 2));
             Instant time = Instant.ofEpochMilli(timestamp);
             Instant now = Instant.now();
             if (time.isAfter(now) || time.isBefore(now.minusSeconds(10)) || used.contains(time)) {
@@ -105,21 +112,23 @@ public class SignSecurityFilter extends Filter {
         }
     }
 
+    boolean verifyCell(String data, String body) {
+        String headerCell = data.substring(data.length() - 2);
+        if (!headerCell.trim().equalsIgnoreCase(body.trim())) {
+            throw new AccessControlException("Error checking authorization.");
+        }
+        return true;
+    }
+
     private void cleanUsed() {
         if (counter.incrementAndGet() > 10) {
-            Iterator<Instant> usedIterator = used.iterator();
-            while (usedIterator.hasNext()) {
-                Instant time = usedIterator.next();
-                if (time.isBefore(Instant.now().minusSeconds(10))) {
-                    usedIterator.remove();
-                }
-            }
+            used.removeIf(time -> time.isBefore(Instant.now().minusSeconds(10)));
         }
     }
 
     private String getSigned(String authHeader) {
-        String[] headerArray =  authHeader.split("\\.");
-        if(headerArray.length != 2) throw new AccessControlException("Wrong auth header provided");
+        String[] headerArray = authHeader.split("\\.");
+        if (headerArray.length != 2) throw new AccessControlException("Wrong auth header provided");
         return headerArray[1];
     }
 
