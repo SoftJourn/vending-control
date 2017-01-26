@@ -10,11 +10,16 @@ import com.sun.net.httpserver.HttpExchange;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 @Slf4j
 public class RequestProcessor implements Runnable {
 
-    public static final int KEYBOARD_WAITING_TIMEOUT_SECONDS = 5;
+    private AtomicBoolean stop = new AtomicBoolean(false);
 
     private RequestsHolder holder;
 
@@ -24,6 +29,8 @@ public class RequestProcessor implements Runnable {
 
     private KeyboardEmulator keyboardEmulator;
 
+    private Map<String, Consumer<HttpExchange>> routes = new HashMap<>();
+
     public RequestProcessor(RequestsHolder holder, Machine machine, Executive executive, KeyboardEmulator keyboardEmulator) {
         this.holder = holder;
         this.machine = machine;
@@ -31,14 +38,34 @@ public class RequestProcessor implements Runnable {
         this.keyboardEmulator = keyboardEmulator;
     }
 
+    public RequestProcessor setPathController(String path, Consumer<HttpExchange> controller) {
+        routes.put(path, controller);
+        return this;
+    }
+
     @Override
     public void run() {
         while (! Thread.currentThread().isInterrupted()) {
-            process();
+            processSellCommand();
         }
     }
 
     private void process() {
+        try {
+            HttpExchange exchange = holder.next();
+            synchronized (exchange) {
+                String path = exchange.getRequestURI().getPath();
+                getPathController(path)
+                        .orElseThrow(() -> new IOException("There is no controller for " + path + "."))
+                        .accept(exchange);
+                exchange.notify();
+            }
+        } catch (IOException e) {
+            log.error("Exception during processing request. " + e.getMessage(), e);
+        }
+    }
+
+    private void processSellCommand() {
         try {
             HttpExchange exchange = holder.next();
             synchronized (exchange) {
@@ -53,6 +80,14 @@ public class RequestProcessor implements Runnable {
         } catch (IOException | InterruptedException e) {
             log.error("Exception during processing request. " + e.getMessage(), e);
         }
+    }
+
+    private void processResetEnginesCommand() {
+
+    }
+
+    private Optional<Consumer<HttpExchange>> getPathController(String path) {
+        return Optional.of(httpExchange -> System.out.println());
     }
 
     private Status sell(int timeout) {
