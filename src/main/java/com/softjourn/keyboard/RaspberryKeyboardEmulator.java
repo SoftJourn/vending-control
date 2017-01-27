@@ -16,7 +16,7 @@ public class RaspberryKeyboardEmulator implements KeyboardEmulator, AutoCloseabl
     public RaspberryKeyboardEmulator() {
         log.info("Initializing Raspberry GPIO interface ...");
         gpio = GpioFactory.getInstance();
-        pins = new HashMap<Integer, GpioPinDigitalOutput>(){{
+        pins = new HashMap<Integer, GpioPinDigitalOutput>() {{
             put(1, gpio.provisionDigitalOutputPin(RaspiPin.GPIO_01, "1", PinState.LOW));
             put(2, gpio.provisionDigitalOutputPin(RaspiPin.GPIO_05, "2", PinState.LOW));
             put(3, gpio.provisionDigitalOutputPin(RaspiPin.GPIO_04, "3", PinState.LOW));
@@ -46,6 +46,28 @@ public class RaspberryKeyboardEmulator implements KeyboardEmulator, AutoCloseabl
         } else {
             log.warn("Wrong key \"" + key + "\".");
         }
+    }
+
+    @Override
+    public void resetEngines() throws InterruptedException {
+        log.warn("Resetting engines state!");
+
+        GpioPinDigitalOutput[] resetCommandsPinsFlow = new GpioPinDigitalOutput[]{
+                pins.get(8),
+                pins.get(8),
+                pins.get(9),
+                pins.get(8),
+                pins.get(9),
+                pins.get(8),
+                pins.get(9)
+        };
+
+        for (GpioPinDigitalOutput pin : resetCommandsPinsFlow) {
+            pin.pulse(70, true); //press current button
+            Thread.sleep(500);  // wait 0.5 second
+        }
+        Thread.sleep(8000); // wait 8 seconds for reinitialising.
+        log.info("Successful resetting.");
     }
 
     @Override

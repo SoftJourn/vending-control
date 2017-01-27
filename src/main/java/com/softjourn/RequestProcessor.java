@@ -10,16 +10,9 @@ import com.sun.net.httpserver.HttpExchange;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 
 @Slf4j
 public class RequestProcessor implements Runnable {
-
-    private AtomicBoolean stop = new AtomicBoolean(false);
 
     private RequestsHolder holder;
 
@@ -29,7 +22,6 @@ public class RequestProcessor implements Runnable {
 
     private KeyboardEmulator keyboardEmulator;
 
-    private Map<String, Consumer<HttpExchange>> routes = new HashMap<>();
 
     public RequestProcessor(RequestsHolder holder, Machine machine, Executive executive, KeyboardEmulator keyboardEmulator) {
         this.holder = holder;
@@ -38,61 +30,57 @@ public class RequestProcessor implements Runnable {
         this.keyboardEmulator = keyboardEmulator;
     }
 
-    public RequestProcessor setPathController(String path, Consumer<HttpExchange> controller) {
-        routes.put(path, controller);
-        return this;
-    }
 
     @Override
     public void run() {
-        while (! Thread.currentThread().isInterrupted()) {
-            processSellCommand();
+        while (!Thread.currentThread().isInterrupted()) {
+            process();
         }
     }
 
     private void process() {
-        try {
-            HttpExchange exchange = holder.next();
-            synchronized (exchange) {
-                String path = exchange.getRequestURI().getPath();
-                getPathController(path)
-                        .orElseThrow(() -> new IOException("There is no controller for " + path + "."))
-                        .accept(exchange);
-                exchange.notify();
+        HttpExchange exchange = holder.next();
+        synchronized (exchange) {
+            String path = exchange.getRequestURI().getPath();
+            if (path.startsWith("/service")) {
+                processResetEnginesCommand(exchange);
+            } else {
+                processSellCommand(exchange);
             }
-        } catch (IOException e) {
-            log.error("Exception during processing request. " + e.getMessage(), e);
+            exchange.notify();
         }
     }
 
-    private void processSellCommand() {
+    private void processSellCommand(HttpExchange exchange) {
         try {
-            HttpExchange exchange = holder.next();
-            synchronized (exchange) {
-                String cell = getCell(exchange);
-                log.info("Request for \"" + cell + "\" cell received.");
-                log.debug("Sending selected cell to keyboard emulator.");
-                keyboardEmulator.sendKey(cell);
-
-                holder.putResult(exchange, Status.SUCCESS);
-                exchange.notify();
-            }
-        } catch (IOException | InterruptedException e) {
+            String cell = getCell(exchange);
+            log.info("Request for \"" + cell + "\" cell received.");
+            log.debug("Sending selected cell to keyboard emulator.");
+            keyboardEmulator.sendKey(cell);
+            holder.putResult(exchange, Status.SUCCESS);
+        } catch (InterruptedException e) {
             log.error("Exception during processing request. " + e.getMessage(), e);
+            holder.putResult(exchange, Status.ERROR);
+        } finally {
+            exchange.notify();
         }
     }
 
-    private void processResetEnginesCommand() {
-
-    }
-
-    private Optional<Consumer<HttpExchange>> getPathController(String path) {
-        return Optional.of(httpExchange -> System.out.println());
+    private void processResetEnginesCommand(HttpExchange exchange) {
+        try {
+            keyboardEmulator.resetEngines();
+            holder.putResult(exchange, Status.SUCCESS);
+        } catch (InterruptedException e) {
+            log.error("Exception during processing request. " + e.getMessage(), e);
+            holder.putResult(exchange, Status.ERROR);
+        } finally {
+            exchange.notify();
+        }
     }
 
     private Status sell(int timeout) {
         try {
-            int currentSeconds = (int) (System.currentTimeMillis()/1000);
+            int currentSeconds = (int) (System.currentTimeMillis() / 1000);
             int endSeconds = currentSeconds + timeout;
             while (currentSeconds < endSeconds) {
                 Credit credit = executive.credit(machine);
@@ -102,7 +90,7 @@ public class RequestProcessor implements Runnable {
                     Vend vendResult = executive.vend(machine);
                     return vendResult == Vend.SUCCESS ? Status.SUCCESS : Status.ERROR;
                 }
-                currentSeconds = (int) (System.currentTimeMillis()/1000);
+                currentSeconds = (int) (System.currentTimeMillis() / 1000);
             }
             return Status.ERROR;
         } catch (IOException | InterruptedException e) {
@@ -111,11 +99,11 @@ public class RequestProcessor implements Runnable {
 
     }
 
-    private String getCell(HttpExchange exchange) throws IOException {
+    private String getCell(HttpExchange exchange) {
         return (String) exchange.getAttribute("Cell");
     }
 
-    public enum  Status {
+    public enum Status {
         SUCCESS(200), ERROR(500);
 
         private int code;

@@ -76,10 +76,16 @@ public class SignSecurityFilter extends Filter {
         String signed = getSigned(authHeader);
         verifySignature(data, signed);
         verifyTime(data);
+        verifyBody(data, httpExchange);
+    }
+
+    private void verifyBody(String data, HttpExchange httpExchange) {
         try {
             String body = IOUtils.toString(httpExchange.getRequestBody(), "utf8");
-            verifyCell(data, body);
-            httpExchange.setAttribute("Cell", body);
+            if (!body.trim().isEmpty()) {
+                verifyCell(data, body);
+                httpExchange.setAttribute("Cell", body);
+            }
         } catch (IOException e) {
             log.warn("Can't read request body", e);
         }
