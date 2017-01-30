@@ -41,8 +41,6 @@ public class RaspberryKeyboardEmulator implements KeyboardEmulator, AutoCloseabl
             rowNumberPin.pulse(70, true);
             Thread.sleep(100);
             columnNumberPin.pulse(70);
-            Thread.sleep(9000);
-            log.info("Successful vending.");
         } else {
             log.warn("Wrong key \"" + key + "\".");
         }

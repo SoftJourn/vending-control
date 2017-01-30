@@ -6,10 +6,13 @@ import com.softjourn.executive.Executive;
 import com.softjourn.executive.Vend;
 import com.softjourn.keyboard.KeyboardEmulator;
 import com.softjourn.machine.Machine;
+import com.softjourn.sellcontrol.SellControlListener;
 import com.sun.net.httpserver.HttpExchange;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class RequestProcessor implements Runnable {
@@ -22,12 +25,15 @@ public class RequestProcessor implements Runnable {
 
     private KeyboardEmulator keyboardEmulator;
 
+    private SellControlListener listener;
 
-    public RequestProcessor(RequestsHolder holder, Machine machine, Executive executive, KeyboardEmulator keyboardEmulator) {
+
+    public RequestProcessor(RequestsHolder holder, Machine machine, Executive executive, KeyboardEmulator keyboardEmulator, SellControlListener listener) {
         this.holder = holder;
         this.machine = machine;
         this.executive = executive;
         this.keyboardEmulator = keyboardEmulator;
+        this.listener = listener;
     }
 
 
@@ -56,8 +62,17 @@ public class RequestProcessor implements Runnable {
             String cell = getCell(exchange);
             log.info("Request for \"" + cell + "\" cell received.");
             log.debug("Sending selected cell to keyboard emulator.");
+            CountDownLatch monitor = new CountDownLatch(1);
+            listener.startListen(monitor);
             keyboardEmulator.sendKey(cell);
-            holder.putResult(exchange, Status.SUCCESS);
+            if (monitor.await(9, TimeUnit.SECONDS)) {
+                holder.putResult(exchange, Status.SUCCESS);
+                log.info("Successful vending.");
+            } else {
+                holder.putResult(exchange, Status.ERROR);
+                log.info("Unsuccessful vending.");
+            }
+            listener.stopListen();
         } catch (InterruptedException e) {
             log.error("Exception during processing request. " + e.getMessage(), e);
             holder.putResult(exchange, Status.ERROR);
