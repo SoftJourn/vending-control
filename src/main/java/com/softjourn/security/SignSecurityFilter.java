@@ -95,20 +95,26 @@ public class SignSecurityFilter extends Filter {
         try {
             signature.update(data.getBytes());
             if (!signature.verify(new BigInteger(signed, 16).toByteArray())) {
-                throw new AccessControlException("Error checking authorization.");
+                throw new AccessControlException("Error checking authorization. Signature is wrong!");
             }
         } catch (SignatureException e) {
-            throw new AccessControlException("Error checking authorization.");
+            throw new AccessControlException("Error checking authorization. Signature is wrong!");
         }
     }
 
     boolean verifyTime(String data) {
         try {
-            Long timestamp = Long.parseLong(data.substring(0, data.length() - 2));
+            Long timestamp = Long.parseLong(data.substring(0, 13));
             Instant time = Instant.ofEpochMilli(timestamp);
             Instant now = Instant.now();
-            if (time.isAfter(now) || time.isBefore(now.minusSeconds(10)) || used.contains(time)) {
-                throw new AccessControlException("Error checking authorization.");
+            String message = "Error checking authorization. ";
+            if (time.isAfter(now)) {
+                throw new AccessControlException(message + "Request time is higher then system time.");
+            } else if (time.isBefore(now.minusSeconds(10))) {
+                throw new AccessControlException(message + "Request time is behind then system time more than 10 seconds." +
+                "System time: " + now + ", request time: " + time);
+            } else if (used.contains(time)) {
+                throw new AccessControlException(message + "Request timestamp already used.");
             }
             used.add(time);
             cleanUsed();
