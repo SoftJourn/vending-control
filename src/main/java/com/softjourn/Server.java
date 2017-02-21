@@ -5,7 +5,7 @@ import com.softjourn.keyboard.KeyboardEmulator;
 import com.softjourn.keyboard.RaspberryKeyboardEmulator;
 import com.softjourn.machine.Machine;
 import com.softjourn.security.SignSecurityFilter;
-import com.softjourn.sellcontrol.SellControlListener;
+import com.softjourn.sellcontrol.SellController;
 import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpServer;
 import gnu.io.NoSuchPortException;
@@ -84,7 +84,7 @@ public class Server implements AutoCloseable {
 
         KeyboardEmulator keyboardEmulator = new RaspberryKeyboardEmulator();
         Machine machine = mock(Machine.class);
-        SellControlListener listener = new SellControlListener(25, 27);
+        SellController listener = new SellController(27);
 
         Executive executive = new Executive();
         RequestProcessor requestProcessor = new RequestProcessor(requestHandler, machine, executive, keyboardEmulator, listener);
