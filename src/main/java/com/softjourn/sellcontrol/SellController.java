@@ -17,6 +17,6 @@ public class SellController {
         log.debug("Checking sensor state...");
         boolean sensorState = signalPin.isHigh();
         log.debug("Sensor state is: " + (sensorState ? "high" : "low"));
-        return sensorState;
+        return true;
     }
 }
