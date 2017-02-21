@@ -33,6 +33,7 @@ public class RaspberryKeyboardEmulator implements KeyboardEmulator, AutoCloseabl
 
     @Override
     public void sendKey(String key) throws InterruptedException {
+        reinitPins();
         log.info("Input command \"" + key + "\".");
         resetPinsState();
         if (key.matches("^[1-9]{2}$")) {
@@ -49,6 +50,7 @@ public class RaspberryKeyboardEmulator implements KeyboardEmulator, AutoCloseabl
 
     @Override
     public void resetEngines() throws InterruptedException {
+        reinitPins();
         log.warn("Resetting engines state!");
         resetPinsState();
         GpioPinDigitalOutput[] resetCommandsPinsFlow = new GpioPinDigitalOutput[]{
@@ -77,5 +79,8 @@ public class RaspberryKeyboardEmulator implements KeyboardEmulator, AutoCloseabl
     public void close() throws Exception {
         log.info("Shutting down Raspberry GPIO interface ...");
         gpio.shutdown();
+    }
+    private void reinitPins() {
+        pins.values().forEach(GpioPinDigitalOutput::low);
     }
 }
