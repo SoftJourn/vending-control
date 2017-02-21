@@ -1,7 +1,9 @@
 package com.softjourn.sellcontrol;
 
 import com.pi4j.io.gpio.*;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class SellController {
 
     private GpioPinDigitalInput signalPin;
@@ -12,6 +14,9 @@ public class SellController {
     }
 
     public boolean wasSuccessful() {
-        return signalPin.isHigh();
+        log.debug("Checking sensor state...");
+        boolean sensorState = signalPin.isHigh();
+        log.debug("Sensor state is: " + (sensorState ? "high" : "low"));
+        return sensorState;
     }
 }
