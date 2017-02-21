@@ -3,6 +3,7 @@ package com.softjourn;
 import com.softjourn.executive.Executive;
 import com.softjourn.keyboard.KeyboardEmulator;
 import com.softjourn.machine.Machine;
+import com.softjourn.sellcontrol.SellController;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
@@ -45,6 +46,9 @@ public class Test {
     @Mock
     OutputStream outputStream;
 
+    @Mock
+    SellController sellController;
+
     @Before
     public void setUp() throws Exception {
 
@@ -78,9 +82,9 @@ public class Test {
             }
         });
 
-        HttpVendRequestHandler requestHandler = new HttpVendRequestHandler();
+        HttpVendRequestHandler requestHandler = new HttpVendRequestHandler(1);
         Executive executive = new Executive();
-        RequestProcessor requestProcessor = new RequestProcessor(requestHandler, machine, executive, keyboardEmulator);
+        RequestProcessor requestProcessor = new RequestProcessor(requestHandler, machine, executive, keyboardEmulator, sellController);
 
         server = Server.builder()
                 .executor(Executors.newCachedThreadPool())
