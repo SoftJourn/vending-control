@@ -85,7 +85,8 @@ public class Server implements AutoCloseable {
         KeyboardEmulator keyboardEmulator = new RaspberryKeyboardEmulator();
         Machine machine = mock(Machine.class);
         SellController listener = new SellController(27);
-
+        initShutdownHook(listener);
+        listener.startListen();
         Executive executive = new Executive();
         RequestProcessor requestProcessor = new RequestProcessor(requestHandler, machine, executive, keyboardEmulator, listener);
 
@@ -96,6 +97,14 @@ public class Server implements AutoCloseable {
                 .securityFilter(signSecurityFilter)
                 .build()
                 .start();
+    }
+
+    private static void initShutdownHook(SellController listener) {
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            public void run() {
+                listener.stopListen();
+            }
+        });
     }
 
     public static byte[] readPublicKey() throws FileNotFoundException, CertificateException {

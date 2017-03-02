@@ -1,6 +1,10 @@
 package com.softjourn.sellcontrol;
 
-import com.pi4j.io.gpio.*;
+import com.pi4j.io.gpio.GpioController;
+import com.pi4j.io.gpio.GpioFactory;
+import com.pi4j.io.gpio.GpioPinDigitalInput;
+import com.pi4j.io.gpio.RaspiPin;
+import com.pi4j.io.gpio.event.GpioPinListenerDigital;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -19,4 +23,16 @@ public class SellController {
         log.debug("Sensor state is: " + (sensorState ? "high" : "low"));
         return true;
     }
+
+    public void startListen() {
+        signalPin.addListener((GpioPinListenerDigital) (event -> {
+            log.debug("VENDING_CONTROL_LISTENER: event on control pin: edge - " + event.getEdge() + ", state - " + event.getState());
+        }));
+    }
+
+
+    public void stopListen() {
+        signalPin.removeAllListeners();
+    }
+
 }
