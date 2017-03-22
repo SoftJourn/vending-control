@@ -61,8 +61,8 @@ public class RequestProcessor implements Runnable {
             log.info("Request for \"" + cell + "\" cell received.");
             log.debug("Sending selected cell to keyboard emulator.");
             keyboardEmulator.sendKey(cell);
-            Thread.sleep(9000);
-            if (listener.wasSuccessful()) {
+            Thread.sleep(5000);
+            if (listener.wasSuccessful(5)) {
                 holder.putResult(exchange, Status.SUCCESS);
                 log.info("Successful vending.");
             } else {

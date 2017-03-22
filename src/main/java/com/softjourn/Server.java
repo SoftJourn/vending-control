@@ -84,9 +84,8 @@ public class Server implements AutoCloseable {
 
         KeyboardEmulator keyboardEmulator = new RaspberryKeyboardEmulator();
         Machine machine = mock(Machine.class);
-        SellController listener = new SellController(27);
+        SellController listener = new SellController(27, 6);
         initShutdownHook(listener);
-        listener.startListen();
         Executive executive = new Executive();
         RequestProcessor requestProcessor = new RequestProcessor(requestHandler, machine, executive, keyboardEmulator, listener);
 
