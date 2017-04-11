@@ -1,4 +1,4 @@
-<configuration debug="true">
+<configuration debug="true" scan="true" scanPeriod="30">
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -18,7 +18,7 @@
         </encoder>
     </appender>
 
-    <root level="debug">
+    <root level="info">
         <appender-ref ref="STDOUT" />
         <appender-ref ref="FILE" />
     </root>
