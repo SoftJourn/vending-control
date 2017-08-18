@@ -30,6 +30,9 @@ import static org.mockito.Mockito.mock;
 @Builder
 public class Server implements AutoCloseable {
 
+    public static final int NOISE_SENSOR = 27;
+    public static final int OPTICAL_SENSOR = 6;
+
     private HttpServer server;
 
     private int port;
@@ -84,7 +87,7 @@ public class Server implements AutoCloseable {
 
         KeyboardEmulator keyboardEmulator = new RaspberryKeyboardEmulator();
         Machine machine = mock(Machine.class);
-        SellController listener = new SellController(27, 6);
+        SellController listener = new SellController(NOISE_SENSOR, OPTICAL_SENSOR);
         initShutdownHook(listener);
         Executive executive = new Executive();
         RequestProcessor requestProcessor = new RequestProcessor(requestHandler, machine, executive, keyboardEmulator, listener);

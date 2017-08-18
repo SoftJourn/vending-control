@@ -11,6 +11,10 @@ import com.sun.net.httpserver.HttpExchange;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+
+import static java.lang.String.format;
 
 @Slf4j
 public class RequestProcessor implements Runnable {
@@ -58,8 +62,10 @@ public class RequestProcessor implements Runnable {
     private void processSellCommand(HttpExchange exchange) {
         try {
             String cell = getCell(exchange);
+            log.info("----------------------------------------------------------------");
             log.info("Request for \"" + cell + "\" cell received.");
-            log.debug("Sending selected cell to keyboard emulator.");
+            log.info("Sending selected cell to keyboard emulator.");
+            log.info(format("Keyboard request time(utc): %s", getCurrentUTCDateTime()));
             keyboardEmulator.sendKey(cell);
             if (listener.wasSuccessful(10)) {
                 holder.putResult(exchange, Status.SUCCESS);
@@ -72,6 +78,8 @@ public class RequestProcessor implements Runnable {
             log.error("Exception during processing request. " + e.getMessage(), e);
             holder.putResult(exchange, Status.ERROR);
         } finally {
+            log.info(format("Keyboard response time(utc): %s", getCurrentUTCDateTime()));
+            log.info("----------------------------------------------------------------");
             exchange.notify();
         }
     }
@@ -111,6 +119,11 @@ public class RequestProcessor implements Runnable {
 
     private String getCell(HttpExchange exchange) {
         return (String) exchange.getAttribute("Cell");
+    }
+
+    public static String getCurrentUTCDateTime() {
+        ZonedDateTime utc = ZonedDateTime.now(ZoneOffset.UTC);
+        return utc.toInstant().toString();
     }
 
     public enum Status {

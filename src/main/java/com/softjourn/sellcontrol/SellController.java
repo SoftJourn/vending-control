@@ -1,6 +1,10 @@
 package com.softjourn.sellcontrol;
 
-import com.pi4j.io.gpio.*;
+import com.pi4j.io.gpio.GpioController;
+import com.pi4j.io.gpio.GpioFactory;
+import com.pi4j.io.gpio.GpioPin;
+import com.pi4j.io.gpio.GpioPinDigitalInput;
+import com.pi4j.io.gpio.RaspiPin;
 import com.pi4j.io.gpio.event.GpioPinListenerDigital;
 import lombok.extern.slf4j.Slf4j;
 
@@ -12,6 +16,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.softjourn.Server.NOISE_SENSOR;
+import static java.lang.String.format;
+
 @Slf4j
 public class SellController {
 
@@ -21,7 +28,7 @@ public class SellController {
 
     private AtomicBoolean WAITING_FOR_SELLING = new AtomicBoolean(false);
 
-    private AtomicReference<Instant> lastTymeStateCHanged = new AtomicReference<>(Instant.now());
+    private AtomicReference<Instant> lastTimeStateCHanged = new AtomicReference<>(Instant.now());
 
     public SellController(int... signalPinNumbers) {
         GpioController gpio = GpioFactory.getInstance();
@@ -35,10 +42,13 @@ public class SellController {
     public boolean wasSuccessful(int timeoutInSeconds) {
         log.debug("Waiting for sensor signal...");
         STATE_CHANGED_AFTER_BUYING.set(false);
+        log.debug(format("STATE_CHANGED_AFTER_BUYING: %b", STATE_CHANGED_AFTER_BUYING.get()));
         WAITING_FOR_SELLING.set(true);
+        log.debug(format("WAITING_FOR_SELLING: %b", WAITING_FOR_SELLING.get()));
         Instant timeLimit = Instant.now().plus(timeoutInSeconds, ChronoUnit.SECONDS);
         while (Instant.now().isBefore(timeLimit)) {
             if (STATE_CHANGED_AFTER_BUYING.get()) {
+                log.debug(format("STATE_CHANGED_AFTER_BUYING: %b", STATE_CHANGED_AFTER_BUYING.get()));
                 return true;
             }
         }
@@ -51,12 +61,20 @@ public class SellController {
     }
 
     private GpioPinListenerDigital listener = event -> {
+        int address = event.getPin().getPin().getAddress();
+        log.info(format("Pin address: %d", address));
+        if (address == NOISE_SENSOR) {
+            log.info("Data from noise sensor");
+        } else {
+            log.info("Data from optical sensor");
+        }
         if (WAITING_FOR_SELLING.get()) {
             STATE_CHANGED_AFTER_BUYING.set(true);
-        } else if (lastTymeStateCHanged.get().isBefore(Instant.now().minus(1, ChronoUnit.MINUTES))) {
+        } else if (lastTimeStateCHanged.get().isBefore(Instant.now().minus(1, ChronoUnit.MINUTES))) {
             log.debug("VENDING_CONTROL_LISTENER: event on control pin: edge - " + event.getEdge() + ", state - " + event.getState());
         }
-        lastTymeStateCHanged.set(Instant.now());
+        lastTimeStateCHanged.set(Instant.now());
+        log.debug(format("lastTimeStateCHanged: %b", lastTimeStateCHanged.toString()));
     };
 
 
