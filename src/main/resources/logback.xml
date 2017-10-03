@@ -12,14 +12,39 @@
             <fileNamePattern>/var/log/vending/logFile.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
+        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+            <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
+                <marker>HISTOGRAM</marker>
+            </evaluator>
+            <onMismatch>NEUTRAL</onMismatch>
+            <onMatch>DENY</onMatch>
+        </filter>
+        <encoder>
+            <pattern>%highlight(%d{HH:mm:ss.SSS} %-5level [%thread] %-5level %logger{36} - %msg%n)</pattern>
+        </encoder>
+    </appender>
 
+    <appender name="HISTOGRAM" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/var/log/vending/histogram_data.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>/var/log/vending/histogram_data.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+            <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
+                <marker>HISTOGRAM</marker>
+            </evaluator>
+            <onMismatch>DENY</onMismatch>
+            <onMatch>NEUTRAL</onMatch>
+        </filter>
         <encoder>
             <pattern>%highlight(%d{HH:mm:ss.SSS} %-5level [%thread] %-5level %logger{36} - %msg%n)</pattern>
         </encoder>
     </appender>
 
     <root level="info">
-        <appender-ref ref="STDOUT" />
-        <appender-ref ref="FILE" />
+        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="HISTOGRAM"/>
     </root>
 </configuration>

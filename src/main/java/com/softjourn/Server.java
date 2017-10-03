@@ -87,7 +87,7 @@ public class Server implements AutoCloseable {
         SellController listener = new SellController(27, 6);
         initShutdownHook(listener);
         Executive executive = new Executive();
-        RequestProcessor requestProcessor = new RequestProcessor(requestHandler, machine, executive, keyboardEmulator, listener);
+        RequestProcessor requestProcessor = new RequestProcessor(requestHandler, machine, executive, keyboardEmulator, listener, properties);
 
         Server.builder()
                 .port(7070)
