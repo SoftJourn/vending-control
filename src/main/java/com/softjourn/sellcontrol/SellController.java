@@ -43,7 +43,7 @@ public class SellController {
             }
         }
         WAITING_FOR_SELLING.set(false);
-        return true;
+        return false;
     }
 
     private void startListen() {

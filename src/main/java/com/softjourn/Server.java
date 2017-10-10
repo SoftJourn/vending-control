@@ -12,6 +12,7 @@ import gnu.io.NoSuchPortException;
 import gnu.io.PortInUseException;
 import lombok.Builder;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,6 +31,8 @@ import static org.mockito.Mockito.mock;
 @Builder
 public class Server implements AutoCloseable {
 
+    public static final String APPLICATION_PROPERTIES_EXTERNAL = "/opt/application.properties";
+    public static final String APPLICATION_PROPERTIES = "application.properties";
     private HttpServer server;
 
     private int port;
@@ -72,9 +75,14 @@ public class Server implements AutoCloseable {
     }
 
     public static void main(String[] args) throws NoSuchPortException, PortInUseException, IOException, CertificateException {
-
         Properties properties = new Properties();
-        InputStream propertiesStream = Server.class.getClassLoader().getResourceAsStream("application.properties");
+        InputStream propertiesStream;
+        File propertyFile = new File(APPLICATION_PROPERTIES_EXTERNAL);
+        if (propertyFile.exists() && !propertyFile.isDirectory()) {
+            propertiesStream = Server.class.getClassLoader().getResourceAsStream(propertyFile.getPath());
+        } else {
+            propertiesStream = Server.class.getClassLoader().getResourceAsStream(APPLICATION_PROPERTIES);
+        }
         if (propertiesStream == null) throw new IllegalStateException("Can't find application.properties file");
         properties.load(propertiesStream);
 
@@ -109,7 +117,7 @@ public class Server implements AutoCloseable {
     public static byte[] readPublicKey() throws FileNotFoundException, CertificateException {
         InputStream fin = Server.class.getClassLoader().getResourceAsStream("security.cert");
         CertificateFactory f = CertificateFactory.getInstance("X.509");
-        X509Certificate certificate = (X509Certificate)f.generateCertificate(fin);
+        X509Certificate certificate = (X509Certificate) f.generateCertificate(fin);
         PublicKey pk = certificate.getPublicKey();
         return pk.getEncoded();
     }

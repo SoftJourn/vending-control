@@ -1,9 +1,7 @@
 package com.softjourn;
 
 
-import com.softjourn.executive.Credit;
 import com.softjourn.executive.Executive;
-import com.softjourn.executive.Vend;
 import com.softjourn.keyboard.KeyboardEmulator;
 import com.softjourn.machine.Machine;
 import com.softjourn.sellcontrol.SellController;
@@ -23,10 +21,26 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import static com.softjourn.Status.*;
+
 @Slf4j
 public class RequestProcessor implements Runnable {
 
-    public static final int SPACE_TO_LEFT = 200;
+    private static final int SPACE_TO_LEFT = 200;
+    private static final String OBJECT_DETECTION_MARKER = "OBJECT_DETECTION";
+    private static int TIMEOUT_IN_SECONDS = 10;
+    private static final int SUCCESSFUL_STATUS_CODE = 1;
+    private static final String WEBCAM_SAVE_PATH = "webcam.save.path";
+    private static final String WEBCAM_PICTURE_BEFORE = "webcam.picture.before";
+    private static final String WEBCAM_PICTURE_AFTER = "webcam.picture.after";
+    private static final String OBJECT_DETECTION_PROGRAM = "object.detection.program";
+    private static final String WEBCAM_PICTURE_HEIGHT = "webcam.picture.height";
+    private static final String WEBCAM_PICTURE_WIDTH = "webcam.picture.width";
+    private static final String FOLDER_TO_CHECK_FREE_SPACE = "folder.to.check.free.space";
+    private static final String DETECTION_DEVICE = "detection.device";
+    private static final String CAMERA = "CAMERA";
+    private static final String SENSOR = "SENSOR";
+    private static final String ENGINE_TIME_OUT = "engine.time.out";
 
     private RequestsHolder holder;
 
@@ -40,7 +54,7 @@ public class RequestProcessor implements Runnable {
 
     private WebCamCommander webCamCommander;
 
-    private String histogramProgram;
+    private String objectDetectionProgram;
 
     private String folderToCheckFreeSpace;
 
@@ -54,20 +68,23 @@ public class RequestProcessor implements Runnable {
 
     private Integer width;
 
+    private String device;
+
     public RequestProcessor(RequestsHolder holder, Machine machine, Executive executive, KeyboardEmulator keyboardEmulator, SellController listener, Properties properties) {
         this.holder = holder;
         this.machine = machine;
         this.executive = executive;
         this.keyboardEmulator = keyboardEmulator;
         this.listener = listener;
-        this.path = properties.getProperty("webcam.save.path");
-        this.before = properties.getProperty("webcam.picture.before");
-        this.after = properties.getProperty("webcam.picture.after");
-        this.histogramProgram = properties.getProperty("histogram.program");
-        this.height = Integer.valueOf(properties.getProperty("webcam.picture.height"));
-        this.width = Integer.valueOf(properties.getProperty("webcam.picture.width"));
-        this.folderToCheckFreeSpace = properties.getProperty("folder.to.check.free.space");
-        webCamCommander = new WebCamCommander();
+        this.path = properties.getProperty(WEBCAM_SAVE_PATH);
+        this.before = properties.getProperty(WEBCAM_PICTURE_BEFORE);
+        this.after = properties.getProperty(WEBCAM_PICTURE_AFTER);
+        this.objectDetectionProgram = properties.getProperty(OBJECT_DETECTION_PROGRAM);
+        this.height = Integer.valueOf(properties.getProperty(WEBCAM_PICTURE_HEIGHT));
+        this.width = Integer.valueOf(properties.getProperty(WEBCAM_PICTURE_WIDTH));
+        this.folderToCheckFreeSpace = properties.getProperty(FOLDER_TO_CHECK_FREE_SPACE);
+        this.device = properties.getProperty(DETECTION_DEVICE);
+        TIMEOUT_IN_SECONDS = Integer.parseInt(properties.getProperty(ENGINE_TIME_OUT));
     }
 
 
@@ -92,29 +109,57 @@ public class RequestProcessor implements Runnable {
     }
 
     public void processSellCommand(HttpExchange exchange) {
+        webCamCommander = new WebCamCommander();
         try {
             String cell = getCell(exchange);
             log.info("Request for \"" + cell + "\" cell received.");
             log.debug("Sending selected cell to keyboard emulator.");
-            String before = this.savePhoto(this.before);
-            keyboardEmulator.sendKey(cell);
-            if (listener.wasSuccessful(10)) {
-                holder.putResult(exchange, Status.SUCCESS);
-                log.info("Successful vending.");
-                String after = this.savePhoto(this.after);
-                if (!before.isEmpty() && !after.isEmpty()) {
-                    List<String> histogramComparison = this.executeCommand(new String[]{this.histogramProgram, before, after});
-                    this.logHistogramData(histogramComparison, before, after);
-                }
+            if (device.equals(CAMERA)) {
+                doWithCamera(exchange, cell);
+            } else if (device.equals(SENSOR)) {
+                doWithSensor(exchange, cell);
             } else {
+                log.error("Undefined detection device: " + device);
                 holder.putResult(exchange, Status.ERROR);
-                log.info("Unsuccessful vending.");
             }
         } catch (InterruptedException e) {
             log.error("Exception during processing request. " + e.getMessage(), e);
             holder.putResult(exchange, Status.ERROR);
         } finally {
             exchange.notify();
+        }
+    }
+
+    private void doWithSensor(HttpExchange exchange, String cell) throws InterruptedException {
+        keyboardEmulator.sendKey(cell);
+        if (listener.wasSuccessful(TIMEOUT_IN_SECONDS)) {
+            holder.putResult(exchange, Status.SUCCESS);
+            log.info("Successful vending.");
+        } else {
+            holder.putResult(exchange, Status.ERROR);
+            log.info("Unsuccessful vending.");
+        }
+    }
+
+    private void doWithCamera(HttpExchange exchange, String cell) throws InterruptedException {
+        String before = this.savePhoto(this.before);
+        keyboardEmulator.sendKey(cell);
+        Thread.sleep(TIMEOUT_IN_SECONDS * 1000);
+        String after = this.savePhoto(this.after);
+        if (!before.isEmpty() && !after.isEmpty()) {
+            ExecutionResponse executionResponse = this.executeCommand(new String[]{this.objectDetectionProgram, before, after});
+            if (executionResponse.getStatus().equals(SUCCESS)) {
+                holder.putResult(exchange, Status.SUCCESS);
+                log.info("Successful vending.");
+                this.logData(executionResponse.getResponseData(), before, after);
+            } else if (executionResponse.getStatus().equals(FAILURE)) {
+                holder.putResult(exchange, Status.ERROR);
+                log.info("Unsuccessful vending.");
+                this.logData(executionResponse.getResponseData(), before, after);
+            } else if (executionResponse.getStatus().equals(ERROR)) {
+                holder.putResult(exchange, Status.ERROR);
+                log.info("Unsuccessful vending.");
+            }
         }
     }
 
@@ -128,27 +173,6 @@ public class RequestProcessor implements Runnable {
         } finally {
             exchange.notify();
         }
-    }
-
-    private Status sell(int timeout) {
-        try {
-            int currentSeconds = (int) (System.currentTimeMillis() / 1000);
-            int endSeconds = currentSeconds + timeout;
-            while (currentSeconds < endSeconds) {
-                Credit credit = executive.credit(machine);
-                if (credit == Credit.VEND_REQUESTED) {
-                    log.debug("Vend request from machine received.");
-                    log.debug("Sending \"VEND\" command.");
-                    Vend vendResult = executive.vend(machine);
-                    return vendResult == Vend.SUCCESS ? Status.SUCCESS : Status.ERROR;
-                }
-                currentSeconds = (int) (System.currentTimeMillis() / 1000);
-            }
-            return Status.ERROR;
-        } catch (IOException | InterruptedException e) {
-            return Status.ERROR;
-        }
-
     }
 
     private String getCell(HttpExchange exchange) {
@@ -189,8 +213,8 @@ public class RequestProcessor implements Runnable {
         }
     }
 
-    public void logHistogramData(List<String> data, String fileBefore, String fileAfter) {
-        Marker marker = MarkerFactory.getMarker("HISTOGRAM");
+    private void logData(List<String> data, String fileBefore, String fileAfter) {
+        Marker marker = MarkerFactory.getMarker(OBJECT_DETECTION_MARKER);
         log.info(marker, "---------------------------------------------------------------------------------------------");
         log.info(marker, "File before: " + fileBefore);
         log.info(marker, "File after:  " + fileAfter);
@@ -200,27 +224,33 @@ public class RequestProcessor implements Runnable {
         log.info(marker, "---------------------------------------------------------------------------------------------");
     }
 
-    public List<String> executeCommand(String[] command) {
+    private ExecutionResponse executeCommand(String[] command) {
         Runtime runtime = Runtime.getRuntime();
         List<String> result = new ArrayList<>();
+        String line;
         try {
             Process process = runtime.exec(command);
-            BufferedReader stdInput = new BufferedReader(new
+            process.waitFor();
+            try (BufferedReader stdInput = new BufferedReader(new
                     InputStreamReader(process.getInputStream()));
+                 BufferedReader stdError = new BufferedReader(new
+                         InputStreamReader(process.getErrorStream()))) {
 
-            BufferedReader stdError = new BufferedReader(new
-                    InputStreamReader(process.getErrorStream()));
-            String line;
-            while ((line = stdInput.readLine()) != null) {
-                result.add(line);
+                while ((line = stdInput.readLine()) != null) {
+                    result.add(line);
+                }
+                while ((line = stdError.readLine()) != null) {
+                    result.add(line);
+                }
             }
-            while ((line = stdError.readLine()) != null) {
-                result.add(line);
+            if (process.exitValue() == SUCCESSFUL_STATUS_CODE) {
+                return new ExecutionResponse(SUCCESS, result);
+            } else {
+                return new ExecutionResponse(FAILURE, result);
             }
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             log.error(e.getLocalizedMessage());
-        } finally {
-            return result;
+            return new ExecutionResponse(ERROR, result);
         }
     }
 }

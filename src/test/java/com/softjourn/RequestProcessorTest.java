@@ -16,6 +16,7 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 @RunWith(MockitoJUnitRunner.class)
 public class RequestProcessorTest {
@@ -60,8 +61,26 @@ public class RequestProcessorTest {
     public void histogramProperty() {
         assertEquals(1, properties.stringPropertyNames()
                 .stream()
-                .filter(s -> s.matches("(.*)^histogram(.*)"))
+                .filter(s -> s.matches("(.*)^object.detection(.*)"))
                 .collect(Collectors.toList()).size());
+    }
+
+    @Test
+    public void timeOutProperty() {
+        assertEquals(1, properties.stringPropertyNames()
+                .stream()
+                .filter(s -> s.matches("(.*)^engine.time.out(.*)"))
+                .collect(Collectors.toList()).size());
+    }
+
+    @Test
+    public void detectionProperty() {
+        assertEquals(1, properties.stringPropertyNames()
+                .stream()
+                .filter(s -> s.matches("(.*)^detection.device(.*)"))
+                .collect(Collectors.toList()).size());
+        String device = properties.getProperty("detection.device");
+        assertTrue(device.equals("SENSOR") || device.equals("CAMERA"));
     }
 
 //    Use this test only in case you want to modify histogram statistic
@@ -69,7 +88,7 @@ public class RequestProcessorTest {
 //    public void callHistogramProgramTest() {
 //        String before = requestProcessor.savePhoto("before");
 //        String after = requestProcessor.savePhoto("after");
-//        requestProcessor.logHistogramData(requestProcessor.executeCommand(new String[]{"/home/kraytsman/workspace/compare_histograms/compare_histograms", before, after}), before, after);
+//        requestProcessor.logData(requestProcessor.executeCommand(new String[]{"/home/kraytsman/workspace/compare_histograms/object_detection", before, after}).getResponseData(), before, after);
 //    }
 
 }
