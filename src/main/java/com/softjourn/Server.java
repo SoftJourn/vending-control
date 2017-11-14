@@ -5,15 +5,14 @@ import com.softjourn.keyboard.KeyboardEmulator;
 import com.softjourn.keyboard.RaspberryKeyboardEmulator;
 import com.softjourn.machine.Machine;
 import com.softjourn.security.SignSecurityFilter;
+import com.softjourn.sellcontrol.SellController;
 import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpServer;
 import gnu.io.NoSuchPortException;
 import gnu.io.PortInUseException;
 import lombok.Builder;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.security.PublicKey;
 import java.security.cert.CertificateException;
@@ -29,6 +28,8 @@ import static org.mockito.Mockito.mock;
 @Builder
 public class Server implements AutoCloseable {
 
+    public static final String APPLICATION_PROPERTIES_EXTERNAL = "/opt/application.properties";
+    public static final String APPLICATION_PROPERTIES = "application.properties";
     private HttpServer server;
 
     private int port;
@@ -71,9 +72,14 @@ public class Server implements AutoCloseable {
     }
 
     public static void main(String[] args) throws NoSuchPortException, PortInUseException, IOException, CertificateException {
-
         Properties properties = new Properties();
-        InputStream propertiesStream = Server.class.getClassLoader().getResourceAsStream("application.properties");
+        InputStream propertiesStream;
+        File propertyFile = new File(APPLICATION_PROPERTIES_EXTERNAL);
+        if (propertyFile.exists() && !propertyFile.isDirectory()) {
+            propertiesStream = new FileInputStream(propertyFile.getPath());
+        } else {
+            propertiesStream = Server.class.getClassLoader().getResourceAsStream(APPLICATION_PROPERTIES);
+        }
         if (propertiesStream == null) throw new IllegalStateException("Can't find application.properties file");
         properties.load(propertiesStream);
 
@@ -83,9 +89,10 @@ public class Server implements AutoCloseable {
 
         KeyboardEmulator keyboardEmulator = new RaspberryKeyboardEmulator();
         Machine machine = mock(Machine.class);
-
+        SellController listener = new SellController(27, 6);
+        initShutdownHook(listener);
         Executive executive = new Executive();
-        RequestProcessor requestProcessor = new RequestProcessor(requestHandler, machine, executive, keyboardEmulator);
+        RequestProcessor requestProcessor = new RequestProcessor(requestHandler, machine, executive, keyboardEmulator, listener, properties);
 
         Server.builder()
                 .port(7070)
@@ -96,10 +103,18 @@ public class Server implements AutoCloseable {
                 .start();
     }
 
+    private static void initShutdownHook(SellController listener) {
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            public void run() {
+                listener.stopListen();
+            }
+        });
+    }
+
     public static byte[] readPublicKey() throws FileNotFoundException, CertificateException {
         InputStream fin = Server.class.getClassLoader().getResourceAsStream("security.cert");
         CertificateFactory f = CertificateFactory.getInstance("X.509");
-        X509Certificate certificate = (X509Certificate)f.generateCertificate(fin);
+        X509Certificate certificate = (X509Certificate) f.generateCertificate(fin);
         PublicKey pk = certificate.getPublicKey();
         return pk.getEncoded();
     }

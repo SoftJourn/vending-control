@@ -108,7 +108,7 @@ public class SignSecurityFilter extends Filter {
             Instant time = Instant.ofEpochMilli(timestamp);
             Instant now = Instant.now();
             String message = "Error checking authorization. ";
-            if (time.isAfter(now)) {
+            if (time.isAfter(now.plusSeconds(2))) {
                 throw new AccessControlException(message + "Request time is higher then system time.");
             } else if (time.isBefore(now.minusSeconds(10))) {
                 throw new AccessControlException(message + "Request time is behind then system time more than 10 seconds." +

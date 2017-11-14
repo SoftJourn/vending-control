@@ -33,8 +33,8 @@ public class RaspberryKeyboardEmulator implements KeyboardEmulator, AutoCloseabl
 
     @Override
     public void sendKey(String key) throws InterruptedException {
-        reinitPins();
         log.info("Input command \"" + key + "\".");
+        resetPinsState();
         if (key.matches("^[1-9]{2}$")) {
             GpioPinDigitalOutput rowNumberPin = pins.get(Integer.parseInt(key.substring(0, 1)));
             GpioPinDigitalOutput columnNumberPin = pins.get(Integer.parseInt(key.substring(1)));
@@ -42,8 +42,6 @@ public class RaspberryKeyboardEmulator implements KeyboardEmulator, AutoCloseabl
             rowNumberPin.pulse(70, true);
             Thread.sleep(100);
             columnNumberPin.pulse(70);
-            Thread.sleep(9000);
-            log.info("Successful vending.");
         } else {
             log.warn("Wrong key \"" + key + "\".");
         }
@@ -51,9 +49,8 @@ public class RaspberryKeyboardEmulator implements KeyboardEmulator, AutoCloseabl
 
     @Override
     public void resetEngines() throws InterruptedException {
-        reinitPins();
         log.warn("Resetting engines state!");
-
+        resetPinsState();
         GpioPinDigitalOutput[] resetCommandsPinsFlow = new GpioPinDigitalOutput[]{
                 pins.get(8),
                 pins.get(8),
@@ -72,12 +69,13 @@ public class RaspberryKeyboardEmulator implements KeyboardEmulator, AutoCloseabl
         log.info("Successful resetting.");
     }
 
+    private void resetPinsState() {
+        pins.values().forEach(GpioPinDigitalOutput::low);
+    }
+
     @Override
     public void close() throws Exception {
         log.info("Shutting down Raspberry GPIO interface ...");
         gpio.shutdown();
-    }
-    private void reinitPins() {
-        pins.values().forEach(GpioPinDigitalOutput::low);
     }
 }

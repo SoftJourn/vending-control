@@ -68,7 +68,7 @@ public class SignSecurityFilterTest {
 
     @Test(expected = AccessControlException.class)
     public void verifyTimeWrongRequest() throws Exception {
-        String time = Instant.now().toEpochMilli() + "ttt";
+        String time = "ttt" + Instant.now().toEpochMilli();
         Thread.sleep(500);
 
         assertTrue(filter.verifyTime(time));

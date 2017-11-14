@@ -1,4 +1,4 @@
-<configuration debug="true">
+<configuration debug="true" scan="true" scanPeriod="30">
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -12,14 +12,39 @@
             <fileNamePattern>/var/log/vending/logFile.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
+        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+            <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
+                <marker>OBJECT_DETECTION</marker>
+            </evaluator>
+            <onMismatch>NEUTRAL</onMismatch>
+            <onMatch>DENY</onMatch>
+        </filter>
+        <encoder>
+            <pattern>%highlight(%d{HH:mm:ss.SSS} %-5level [%thread] %-5level %logger{36} - %msg%n)</pattern>
+        </encoder>
+    </appender>
 
+    <appender name="OBJECT_DETECTION" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/var/log/vending/object_detection_data.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>/var/log/vending/object_detection_data.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+            <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
+                <marker>OBJECT_DETECTION</marker>
+            </evaluator>
+            <onMismatch>DENY</onMismatch>
+            <onMatch>NEUTRAL</onMatch>
+        </filter>
         <encoder>
             <pattern>%highlight(%d{HH:mm:ss.SSS} %-5level [%thread] %-5level %logger{36} - %msg%n)</pattern>
         </encoder>
     </appender>
 
     <root level="info">
-        <appender-ref ref="STDOUT" />
-        <appender-ref ref="FILE" />
+        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="OBJECT_DETECTION"/>
     </root>
 </configuration>
