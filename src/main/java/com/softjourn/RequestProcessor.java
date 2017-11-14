@@ -26,7 +26,6 @@ import static com.softjourn.Status.*;
 @Slf4j
 public class RequestProcessor implements Runnable {
 
-    private static final int SPACE_TO_LEFT = 200;
     private static final String OBJECT_DETECTION_MARKER = "OBJECT_DETECTION";
     private static int TIMEOUT_IN_SECONDS = 10;
     private static final int SUCCESSFUL_STATUS_CODE = 1;
@@ -36,7 +35,6 @@ public class RequestProcessor implements Runnable {
     private static final String OBJECT_DETECTION_PROGRAM = "object.detection.program";
     private static final String WEBCAM_PICTURE_HEIGHT = "webcam.picture.height";
     private static final String WEBCAM_PICTURE_WIDTH = "webcam.picture.width";
-    private static final String FOLDER_TO_CHECK_FREE_SPACE = "folder.to.check.free.space";
     private static final String DETECTION_DEVICE = "detection.device";
     private static final String CAMERA = "CAMERA";
     private static final String SENSOR = "SENSOR";
@@ -55,8 +53,6 @@ public class RequestProcessor implements Runnable {
     private WebCamCommander webCamCommander;
 
     private String objectDetectionProgram;
-
-    private String folderToCheckFreeSpace;
 
     private String path;
 
@@ -82,7 +78,6 @@ public class RequestProcessor implements Runnable {
         this.objectDetectionProgram = properties.getProperty(OBJECT_DETECTION_PROGRAM);
         this.height = Integer.valueOf(properties.getProperty(WEBCAM_PICTURE_HEIGHT));
         this.width = Integer.valueOf(properties.getProperty(WEBCAM_PICTURE_WIDTH));
-        this.folderToCheckFreeSpace = properties.getProperty(FOLDER_TO_CHECK_FREE_SPACE);
         this.device = properties.getProperty(DETECTION_DEVICE);
         TIMEOUT_IN_SECONDS = Integer.parseInt(properties.getProperty(ENGINE_TIME_OUT));
     }
@@ -109,7 +104,6 @@ public class RequestProcessor implements Runnable {
     }
 
     public void processSellCommand(HttpExchange exchange) {
-        webCamCommander = new WebCamCommander();
         try {
             String cell = getCell(exchange);
             log.info("Request for \"" + cell + "\" cell received.");
@@ -142,23 +136,21 @@ public class RequestProcessor implements Runnable {
     }
 
     private void doWithCamera(HttpExchange exchange, String cell) throws InterruptedException {
+        webCamCommander = new WebCamCommander();
         String before = this.savePhoto(this.before);
+        Thread.sleep(TIMEOUT_IN_SECONDS * 200);
         keyboardEmulator.sendKey(cell);
-        Thread.sleep(TIMEOUT_IN_SECONDS * 1000);
+        Thread.sleep(TIMEOUT_IN_SECONDS * 800);
         String after = this.savePhoto(this.after);
         if (!before.isEmpty() && !after.isEmpty()) {
             ExecutionResponse executionResponse = this.executeCommand(new String[]{this.objectDetectionProgram, before, after});
-            if (executionResponse.getStatus().equals(SUCCESS)) {
+            this.logData(executionResponse.getAmountOfObjects(), before, after);
+            if (executionResponse.getStatus().equals(SUCCESS) && executionResponse.getAmountOfObjects() > 0) {
                 holder.putResult(exchange, Status.SUCCESS);
                 log.info("Successful vending.");
-                this.logData(executionResponse.getResponseData(), before, after);
-            } else if (executionResponse.getStatus().equals(FAILURE)) {
-                holder.putResult(exchange, Status.ERROR);
-                log.info("Unsuccessful vending.");
-                this.logData(executionResponse.getResponseData(), before, after);
             } else if (executionResponse.getStatus().equals(ERROR)) {
                 holder.putResult(exchange, Status.ERROR);
-                log.info("Unsuccessful vending.");
+                log.info("Unsuccessful vending:" + executionResponse.getResponseData());
             }
         }
     }
@@ -194,33 +186,24 @@ public class RequestProcessor implements Runnable {
     }
 
     public String savePhoto(String name) {
-        // check how many free space has left
-        File file = new File(this.folderToCheckFreeSpace);
-        long freeSpace = file.getFreeSpace() / 1014 / 1024;
-        if (freeSpace > SPACE_TO_LEFT) {
-            try {
-                BufferedImage bufferedImage = webCamCommander.takePhoto(this.width, this.height);
-                String datetime = Instant.now().toString();
-                String savePath = this.path + "/" + name + "_" + datetime + ".jpg";
-                ImageIO.write(bufferedImage, "JPG", new File(savePath));
-                return savePath;
-            } catch (IOException e) {
-                log.error(e.getLocalizedMessage());
-                return "";
-            }
-        } else {
+        try {
+            BufferedImage bufferedImage = webCamCommander.takePhoto(this.width, this.height);
+            String datetime = Instant.now().toString();
+            String savePath = this.path + "/" + name + "_" + datetime + ".jpg";
+            ImageIO.write(bufferedImage, "JPG", new File(savePath));
+            return savePath;
+        } catch (IOException e) {
+            log.error(e.getLocalizedMessage());
             return "";
         }
     }
 
-    private void logData(List<String> data, String fileBefore, String fileAfter) {
+    private void logData(Integer amountOfObjects, String fileBefore, String fileAfter) {
         Marker marker = MarkerFactory.getMarker(OBJECT_DETECTION_MARKER);
         log.info(marker, "---------------------------------------------------------------------------------------------");
         log.info(marker, "File before: " + fileBefore);
         log.info(marker, "File after:  " + fileAfter);
-        for (String d : data) {
-            log.info(marker, d);
-        }
+        log.info(marker, "Objects detected:  " + amountOfObjects);
         log.info(marker, "---------------------------------------------------------------------------------------------");
     }
 
@@ -243,14 +226,10 @@ public class RequestProcessor implements Runnable {
                     result.add(line);
                 }
             }
-            if (process.exitValue() == SUCCESSFUL_STATUS_CODE) {
-                return new ExecutionResponse(SUCCESS, result);
-            } else {
-                return new ExecutionResponse(FAILURE, result);
-            }
+            return new ExecutionResponse(SUCCESS, process.exitValue(), result);
         } catch (IOException | InterruptedException e) {
             log.error(e.getLocalizedMessage());
-            return new ExecutionResponse(ERROR, result);
+            return new ExecutionResponse(ERROR, 0, result);
         }
     }
 }

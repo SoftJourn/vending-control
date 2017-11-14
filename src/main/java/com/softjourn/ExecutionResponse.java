@@ -11,10 +11,12 @@ public class ExecutionResponse {
 
     private Status status;
 
+    private Integer amountOfObjects;
+
     private List<String> responseData;
 
 }
 
 enum Status {
-    SUCCESS, FAILURE, ERROR
+    SUCCESS, ERROR
 }

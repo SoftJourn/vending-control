@@ -12,10 +12,7 @@ import gnu.io.NoSuchPortException;
 import gnu.io.PortInUseException;
 import lombok.Builder;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.security.PublicKey;
 import java.security.cert.CertificateException;
@@ -79,7 +76,7 @@ public class Server implements AutoCloseable {
         InputStream propertiesStream;
         File propertyFile = new File(APPLICATION_PROPERTIES_EXTERNAL);
         if (propertyFile.exists() && !propertyFile.isDirectory()) {
-            propertiesStream = Server.class.getClassLoader().getResourceAsStream(propertyFile.getPath());
+            propertiesStream = new FileInputStream(propertyFile.getPath());
         } else {
             propertiesStream = Server.class.getClassLoader().getResourceAsStream(APPLICATION_PROPERTIES);
         }
